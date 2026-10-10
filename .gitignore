@@ -30,10 +30,6 @@ demo/addons/rul/bin/
 *.swo
 *~
 
-# Python helpers in tests/integration
-__pycache__/
-*.pyc
-
 # OS
 .DS_Store
 Thumbs.db

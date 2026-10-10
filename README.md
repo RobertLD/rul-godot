@@ -62,6 +62,9 @@ git clone --recurse-submodules <repo-url> && cd rul-godot
 cmake --preset godot-debug && cmake --build --preset godot-debug
 ```
 
+Needs GCC 12+, Clang 15+ or MSVC 2022 — the `rul` dependency's `Matrix` has a
+`constexpr` defaulted `operator==`, which requires a `constexpr`-aware `std::vector`.
+
 Output lands in `demo/addons/rul/bin/`. Use the `godot-release` preset for release builds,
 and `tests` + `ctest --preset tests` for the core unit tests (no Godot needed).
 

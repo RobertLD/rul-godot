@@ -58,7 +58,7 @@ jobs:
 
   test:
     name: Unit tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,7 +94,7 @@ jobs:
         include:
           - platform: linux
             os: ubuntu-22.04 # oldest supported glibc
-            config-flags: -DCMAKE_BUILD_TYPE=Release
+            config-flags: -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-12 -DCMAKE_CXX_COMPILER=g++-12
           - platform: windows
             os: windows-2022
             build-flags: --config Release # MSVC multi-config generator
@@ -113,6 +113,12 @@ jobs:
           platform: ${{ matrix.platform }}
           windows-compiler: msvc
           buildtool: cmake
+
+      # The runner stays on 22.04 for its older glibc, but its default GCC 11 lacks the
+      # constexpr std::vector that rul's Matrix::operator== needs.
+      - name: Install GCC 12
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y g++-12
 
       - name: Configure
         shell: bash
