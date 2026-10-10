@@ -1,0 +1,27 @@
+---
+# clang-tidy configuration for rul-godot
+
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  misc-redundant-expression,
+  misc-unused-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -performance-enum-size
+
+WarningsAsErrors: >
+  bugprone-use-after-move,
+  bugprone-incorrect-roundings,
+  bugprone-infinite-loop,
+  bugprone-integer-division,
+  bugprone-misplaced-widening-cast,
+  bugprone-signed-char-misuse,
+  bugprone-too-small-loop-variable
+
+HeaderFilterRegex: '(include/rul|godot/src)/.*'
+
+CheckOptions:
+  - key: bugprone-implicit-widening-of-multiplication-result.UseCXXStaticCastsInCppSources
+    value: true

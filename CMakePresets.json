@@ -1,0 +1,93 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "tests",
+            "inherits": "base",
+            "displayName": "Core + tests",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_TESTING": "ON",
+                "RULGD_BUILD_GODOT": "OFF"
+            }
+        },
+        {
+            "name": "godot-base",
+            "hidden": true,
+            "inherits": "base",
+            "cacheVariables": {
+                "BUILD_TESTING": "OFF",
+                "RULGD_BUILD_GODOT": "ON",
+                "GODOTCPP_API_VERSION": "4.7"
+            }
+        },
+        {
+            "name": "godot-debug",
+            "inherits": "godot-base",
+            "displayName": "GDExtension (template_debug)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "GODOTCPP_TARGET": "template_debug"
+            }
+        },
+        {
+            "name": "godot-release",
+            "inherits": "godot-base",
+            "displayName": "GDExtension (template_release)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "GODOTCPP_TARGET": "template_release"
+            }
+        },
+        {
+            "name": "godot-editor",
+            "inherits": "godot-base",
+            "displayName": "GDExtension (editor)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "GODOTCPP_TARGET": "editor"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "tests",
+            "configurePreset": "tests"
+        },
+        {
+            "name": "godot-debug",
+            "configurePreset": "godot-debug"
+        },
+        {
+            "name": "godot-release",
+            "configurePreset": "godot-release"
+        },
+        {
+            "name": "godot-editor",
+            "configurePreset": "godot-editor"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "tests",
+            "configurePreset": "tests",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ]
+}

@@ -1,0 +1,3 @@
+[submodule "bindings/godot-cpp"]
+	path = godot/godot-cpp
+	url = https://github.com/godotengine/godot-cpp

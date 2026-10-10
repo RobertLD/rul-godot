@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="WaveFunctionCollapse" inherits="RefCounted" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		Generates a grid where every neighbouring pair of states is one you allowed.
+	</brief_description>
+	<description>
+		States are plain integers, so a GDScript enum works as the tile set directly.
+		Declare which states may touch, then call [method generate].
+		[codeblock]
+		enum Tile { WATER, SAND, GRASS }
+
+		var wfc := WaveFunctionCollapse.new()
+		wfc.allow_all(Tile.WATER, Tile.WATER)
+		wfc.allow_all(Tile.WATER, Tile.SAND)
+		wfc.allow_all(Tile.SAND, Tile.SAND)
+		wfc.allow_all(Tile.SAND, Tile.GRASS)
+		wfc.allow_all(Tile.GRASS, Tile.GRASS)
+		wfc.set_weight(Tile.WATER, 1.5)
+
+		var grid := wfc.generate(Vector2i(32, 32), 1234)
+		[/codeblock]
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="allow">
+			<return type="void" />
+			<param index="0" name="state" type="int" />
+			<param index="1" name="direction" type="int" enum="WaveFunctionCollapse.Direction" />
+			<param index="2" name="neighbour" type="int" />
+			<description>
+				Allows [param neighbour] on the [param direction] side of [param state]. The mirrored pair is allowed too, so a wall facing north always has its neighbour facing south.
+			</description>
+		</method>
+		<method name="allow_all">
+			<return type="void" />
+			<param index="0" name="state" type="int" />
+			<param index="1" name="neighbour" type="int" />
+			<description>
+				Allows the two states to touch on any side.
+			</description>
+		</method>
+		<method name="clear">
+			<return type="void" />
+			<description>
+				Forgets every rule and weight.
+			</description>
+		</method>
+		<method name="generate" qualifiers="const">
+			<return type="PackedInt32Array" />
+			<param index="0" name="size" type="Vector2i" />
+			<param index="1" name="seed" type="int" default="0" />
+			<description>
+				Returns the states of a [param size] grid in row-major order, so cell [code](x, y)[/code] is at index [code]y * size.x + x[/code]. The same seed and rules always give the same grid.
+
+				Returns an empty array when the rules leave some cell with no legal state. That is normal for wave function collapse; retry with a different seed.
+			</description>
+		</method>
+		<method name="get_weight" qualifiers="const">
+			<return type="float" />
+			<param index="0" name="state" type="int" />
+			<description>
+				Returns the relative likelihood of [param state], [code]1.0[/code] unless set.
+			</description>
+		</method>
+		<method name="is_allowed" qualifiers="const">
+			<return type="bool" />
+			<param index="0" name="state" type="int" />
+			<param index="1" name="direction" type="int" enum="WaveFunctionCollapse.Direction" />
+			<param index="2" name="neighbour" type="int" />
+			<description>
+				Returns [code]true[/code] if [param neighbour] may sit on the [param direction] side of [param state].
+			</description>
+		</method>
+		<method name="set_weight">
+			<return type="void" />
+			<param index="0" name="state" type="int" />
+			<param index="1" name="weight" type="float" />
+			<description>
+				Sets how often [param state] is picked relative to the others. Must be positive.
+			</description>
+		</method>
+	</methods>
+	<constants>
+		<constant name="NORTH" value="0" enum="Direction">
+			Towards negative Y.
+		</constant>
+		<constant name="EAST" value="1" enum="Direction">
+			Towards positive X.
+		</constant>
+		<constant name="SOUTH" value="2" enum="Direction">
+			Towards positive Y.
+		</constant>
+		<constant name="WEST" value="3" enum="Direction">
+			Towards negative X.
+		</constant>
+	</constants>
+</class>

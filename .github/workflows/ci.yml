@@ -1,0 +1,204 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SCCACHE_GHA_ENABLED: "true"
+  API_VERSION: "4.7"
+  GODOT_VERSION: "4.7-stable"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: mozilla-actions/sccache-action@v0.0.11
+
+      - uses: ./godot/godot-cpp/.github/actions/setup-godot-cpp
+        with:
+          platform: linux
+          buildtool: cmake
+
+      - name: Install clang tooling
+        run: sudo apt-get update && sudo apt-get install -y clang-format-18 clang-tidy-18
+
+      - name: clang-format
+        run: |
+          find include godot/src \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
+            | xargs -0 clang-format-18 --dry-run --Werror
+
+      # clang-tidy needs godot-cpp's generated headers, so build first (~15 s with
+      # build_profile.json).
+      - name: Configure
+        run: >
+          cmake --preset godot-debug
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Build
+        run: cmake --build --preset godot-debug
+
+      - name: clang-tidy
+        run: |
+          find godot/src -name '*.cpp' -print0 \
+            | xargs -0 clang-tidy-18 -p build/godot-debug --quiet \
+                --header-filter='(include/rul|godot/src)/.*'
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: mozilla-actions/sccache-action@v0.0.11
+
+      - uses: ./godot/godot-cpp/.github/actions/setup-godot-cpp
+        with:
+          platform: linux
+          buildtool: cmake
+
+      - name: Configure
+        run: >
+          cmake --preset tests
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Build
+        run: cmake --build --preset tests
+
+      - name: Test
+        run: ctest --preset tests
+
+  build:
+    name: ${{ matrix.platform }} ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux, windows, macos]
+        target: [template_debug, template_release]
+        include:
+          - platform: linux
+            os: ubuntu-22.04 # oldest supported glibc
+            config-flags: -DCMAKE_BUILD_TYPE=Release
+          - platform: windows
+            os: windows-2022
+            build-flags: --config Release # MSVC multi-config generator
+          - platform: macos
+            os: macos-latest
+            config-flags: -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: mozilla-actions/sccache-action@v0.0.11
+
+      - uses: ./godot/godot-cpp/.github/actions/setup-godot-cpp
+        with:
+          platform: ${{ matrix.platform }}
+          windows-compiler: msvc
+          buildtool: cmake
+
+      - name: Configure
+        shell: bash
+        run: >
+          cmake -S . -B build/ci
+          -DRULGD_BUILD_GODOT=ON
+          -DBUILD_TESTING=OFF
+          -DGODOTCPP_API_VERSION=${{ env.API_VERSION }}
+          -DGODOTCPP_TARGET=${{ matrix.target }}
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          ${{ matrix.config-flags }}
+
+      - name: Build
+        shell: bash
+        run: cmake --build build/ci --target rul_godot_ext ${{ matrix.build-flags }}
+
+      - name: sccache stats
+        shell: bash
+        run: ${SCCACHE_PATH} --show-stats
+
+      - name: Smoke test (extension loads and works in headless Godot)
+        if: matrix.platform == 'linux' && matrix.target == 'template_debug'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL -o godot.zip \
+            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip
+          GODOT="$PWD/Godot_v${GODOT_VERSION}_linux.x86_64"
+          chmod +x "$GODOT"
+
+          # The import pass writes .godot/extension_list.cfg. Without it Godot loads
+          # no extensions at all and the check below would pass vacuously.
+          "$GODOT" --headless --path demo --import >/dev/null 2>&1 || true
+          grep -qF 'res://addons/rul/rul.gdextension' demo/.godot/extension_list.cfg
+
+          "$GODOT" --headless --path demo --script res://verify.gd 2>&1 | tee smoke.log
+          if grep -qiE "can't open dynamic library|dynamic library not found|error loading extension|can't open gdextension|entry point .* not found" smoke.log; then
+            echo "::error::GDExtension failed to load - check paths in rul.gdextension"
+            exit 1
+          fi
+          # Godot exits 0 even when the script reports failures.
+          grep -qF 'GDFAILS=0' smoke.log || { echo "::error::verify.gd reported failures"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: librul-${{ matrix.platform }}-${{ matrix.target }}
+          path: |
+            demo/addons/rul/bin/*.so
+            demo/addons/rul/bin/*.dll
+            demo/addons/rul/bin/*.dylib
+          if-no-files-found: error
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [lint, test, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: librul-*
+          merge-multiple: true
+          path: bin
+
+      - name: Assemble addon zip
+        run: |
+          set -euo pipefail
+          mkdir -p dist/addons/rul/bin
+          cp demo/addons/rul/rul.gdextension dist/addons/rul/
+          cp bin/* dist/addons/rul/bin/
+          cp README.md dist/
+          if [ -f LICENSE ]; then
+            cp LICENSE dist/
+          else
+            echo "::warning::no LICENSE file at repo root; omitted from the zip"
+          fi
+          ls -R dist
+          (cd dist && zip -r "../rul-godot-${GITHUB_REF_NAME}.zip" .)
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: rul-godot-${{ github.ref_name }}.zip
+          generate_release_notes: true

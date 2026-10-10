@@ -1,0 +1,47 @@
+{
+    // --- clangd owns IntelliSense; cpptools/CMake Tools must stay out of the way ---
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "C_Cpp.autocomplete": "disabled",
+    "C_Cpp.errorSquiggles": "disabled",
+    "C_Cpp.formatting": "disabled",
+    "cmake.configureOnOpen": true,
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    // Writes compile_commands.json to the workspace root so clangd finds it without extra flags.
+    "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json",
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}",
+        "--background-index",
+        "--clang-tidy",
+        "--header-insertion=iwyu",
+        "--completion-style=detailed",
+        "--function-arg-placeholders=false",
+        "--pch-storage=memory",
+        "-j=4"
+    ],
+    "clangd.onConfigChanged": "restart",
+    "clangd.detectExtensionConflicts": true,
+    // --- formatting ---
+    "editor.formatOnSave": true,
+    "[cpp]": {
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+    },
+    "[c]": {
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+    },
+    "[cmake]": {
+        "editor.defaultFormatter": "ms-vscode.cmake-tools"
+    },
+    "files.associations": {
+        "*.hpp": "cpp",
+        "*.ipp": "cpp"
+    },
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    "editor.rulers": [
+        100
+    ],
+    "search.exclude": {
+        "**/build": true,
+        "**/build-*": true
+    }
+}

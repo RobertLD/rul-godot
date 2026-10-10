@@ -1,0 +1,42 @@
+# Build artifacts
+build/
+build-*/
+cmake-build-*/
+out/
+.cache/
+compile_commands.json
+
+# Compiled binaries (CI produces these; never commit them)
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.lib
+*.pdb
+*.exp
+demo/addons/rul/bin/
+
+# Godot editor cache. Note: *.uid files are NOT ignored — Godot 4.4+ uses them
+# to keep resource references stable across renames, so they belong in git.
+.godot/
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Python helpers in tests/integration
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
